@@ -1,86 +1,139 @@
-# Mandi Rainfall Dashboard — Power BI Project
+# Agriculture Intelligence — Mandi Prices & Rainfall
 
-A premium Power BI dashboard built from five CSV exports of India's mandi (wholesale market)
-prices and IMD district rainfall data.
+An agricultural data engineering and Power BI project combining Indian mandi market prices with district-level rainfall information. Data is processed in **Databricks using Medallion Architecture** and presented through a four-page Power BI dashboard.
 
-![Power BI](https://img.shields.io/badge/Power%20BI-Desktop-yellow) ![Format](https://img.shields.io/badge/format-PBIP%20%2B%20TMDL%20%2B%20PBIR-blue)
+## Project at a glance
 
-## What's inside
+- **Market data:** historical mandi prices and recent AGMARKNET records.
+- **Rainfall data:** daily IMD rainfall observations.
+- **Data platform:** Databricks, Apache Spark / PySpark, Python and Unity Catalog.
+- **Reporting:** Power BI Desktop, using curated Gold-layer tables.
 
+## Data sources
+
+| Dataset | Source | Documented coverage / volume | Relevance |
+|---|---|---:|---|
+| Historical mandi prices | [Hugging Face — Mandi India Daily Prices](https://huggingface.co/datasets/DHIVAKARNAIDUSUNKARI/mandi-india-daily-prices-2001-2026) | 2024: 5,527,169; 2025: 5,827,604 records | Relevant for historical commodity and market-price analysis. Verify upstream provenance and license because it is hosted by a third party. |
+| Recent mandi prices | [AGMARKNET](https://agmarknet.gov.in/) | 1,528 records documented | Relevant official Government of India source for recent mandi-market information. |
+| Daily rainfall | [National Water Data Portal — IMD rainfall](https://nwdp.nwic.gov.in/en/dataset/rainfall-daily-imd) | 63,287 records documented; 19 Aug–14 Nov 2026 | Relevant for rainfall monitoring. Price/rainfall correlation requires overlapping dates and matching locations. |
+
+**Coverage note:** The historical mandi snapshots cover 2024–2025, while the documented rainfall extract covers 2026. They cannot be directly correlated over the same dates. The rainfall source README reports 63,287 records; the Databricks pipeline screenshot shows approximately 127K Bronze records and 63K Silver records. Confirm the raw-file and table counts when reconciling ingestion and deduplication.
+
+## Databricks structure
+
+**Catalog:** `mandi_analysis`  
+**Schema:** `mandi_raw`
+
+The pipeline code is organized in the Workspace under:
+
+```text
+Agriculture_Medallion_Pipeline/
+└── transformations/
+    ├── 01_bronze.py
+    ├── 02_silver.py
+    └── 03_gold.py
 ```
-├── MandiRainfallDashboard.pbip          ← open this in Power BI Desktop
-├── MandiRainfallDashboard.SemanticModel/   TMDL data model (8 tables, 46 measures)
-├── MandiRainfallDashboard.Report/          PBIR report (4 pages, 38 visuals)
-├── *.csv                                   source data (5 files)
-└── _build/                                 generator + validation scripts (Python)
-```
 
-## Quick start — read this before opening on a new machine
+### Medallion layers
 
-The CSV paths are **not** hardcoded, but the `SourceFolder` parameter ships with the
-author's folder as its default — so on any other machine you will see a
-**"Load: Could not find a part of the path C:\Users\..."** error on first open.
-That is expected and takes 30 seconds to fix:
-
-1. Install [Power BI Desktop](https://powerbi.microsoft.com/desktop) (free).
-2. Clone or download this repo **whole** (the 5 CSVs must stay next to the
-   `MandiRainfallDashboard` project folder).
-3. Close the **Load** error dialog with **Close**.
-4. Go to **Transform data → Edit parameters → `SourceFolder`** and set it to the
-   folder that contains the 5 CSV files (e.g. `D:\Downloads\mandi-rainfall-dashboard`).
-5. Click **OK → Close & Apply**, then **Refresh**. Done — the dashboard fills up.
-
-> The repo layout (`5 CSVs` next to `MandiRainfallDashboard/`) is exactly what the
-> queries expect — cloning the repo is all the setup needed.
-
-## Pages
-
-| Page | Contents |
-|---|---|
-| **Overview** | SVG KPI cards, avg price by commodity, records by commodity group, price by state, price summary table |
-| **Prices vs MSP** | KPI cards, market price vs MSP by commodity, week-on-week trend, price gap ranking, MSP comparison table |
-| **Market Explorer** | Commodity / group / state slicers, Top-10 markets chart (TopN filter), min-vs-max price range, full price table |
-| **Rainfall** | Rainfall KPI cards, daily actual-vs-normal line, category donut, monthly comparison, state ranking |
-
-## Design system
-
-- **Full-canvas SVG backgrounds** — every page has a designed 1280x720 canvas
-  (navy header band with gold rule, gold-accented KPI card frames, titled white
-  section frames, footer stamp) registered in `RegisteredResources` and bound via
-  `page.json` background — following the
-  [Dashboard-Design patterns](https://github.com/Dashboard-Design/Power-BI-Design-Files).
-  Visuals sit transparently inside the frames; all chrome is static and always renders.
-- **MandiPremium V2 theme** — Economist-inspired palette (red `#E3120B`, teal `#0098A6`,
-  gold `#FDBF11`), warm paper canvas, navy table headers, transparent visual surfaces.
-- **KPI cards** — native `cardVisual` values in ink, labels hidden (canvas paints titles),
-  full-number display units.
-- **TopN filtering** — Market Explorer's "Top 10 Markets" uses a hand-authored PBIR
-  TopN filter validated by `powerbi-report-author validate`.
-
-## Data model
-
-| Table | Source | Grain |
+| Layer | Purpose | Main work |
 |---|---|---|
-| Market Prices | New_Query CSV | market × commodity (records, avg/min/max price) |
-| Latest Prices | Latest Market Prices CSV | same grain: latest price, trend, MSP deviation |
-| MSP Analysis | Commodity MSP Analysis CSV | commodity (avg market price vs MSP) |
-| Daily Rainfall | Daily Rainfall Trend CSV | district-day (63K rows) |
-| Monthly Rainfall | District Monthly Rainfall CSV | district-month |
-| Dim Commodity / Dim District / _SVG Measures | derived | hubs for filtering and card visuals |
+| **Bronze** | Ingest raw source tables | Creates Bronze streaming tables and adds source/load lineage columns. |
+| **Silver** | Clean and standardize | Standardizes column names, trims text, parses dates, casts numeric and percentage fields, filters invalid rainfall keys, removes selected metadata columns, and deduplicates. |
+| **Gold** | Prepare analytics tables | Creates materialized views for market-price summaries, MSP comparison, latest prices, and rainfall analytics. |
 
-"null" strings in the CSVs are cleaned in Power Query; rainfall categories
-(LD/D/N/E/LE/NR/ND) get readable names and a sort order; month names sort chronologically.
+### Pipeline outputs
 
-## Rebuilding
+**Bronze tables**
+- `bronze_mandi_daily`
+- `bronze_mandi_prices`
+- `bronze_rainfall_daily`
 
-The whole project is generated deterministically from `_build/generate_pbip.py`:
+**Silver tables**
+- `silver_mandi_daily`
+- `silver_mandi_prices`
+- `silver_rainfall_daily`
 
-```bash
-python _build/generate_pbip.py     # regenerate the .pbip from the CSVs
-python _build/validate_pbip.py     # validate report JSON against official MS schemas
-python _build/check_m.py           # sanity-check the Power Query code
+**Gold tables**
+- `gold_market_commodity_price_summary`
+- `gold_commodity_msp_analysis`
+- `gold_latest_market_prices`
+- `gold_district_monthly_rainfall`
+- `gold_daily_rainfall_trend`
+
+### Pipeline screenshots
+
+**Main Agriculture Medallion pipeline**
+
+![Agriculture Medallion pipeline showing source tables flowing through Bronze and Silver into Gold outputs](docs/images/agriculture-medallion-pipeline.png)
+
+**Separate mandi CSV ingestion pipeline**
+
+![Mandi CSV ingestion pipeline showing source views feeding the rainfall and mandi price streaming tables](docs/images/mandi-csv-ingestion-pipeline.png)
+
+The screenshots show a completed run in Databricks on **21 Nov 2026**. The main pipeline graph displays the Bronze → Silver → Gold flow and output-record counts. The separate `mandi_csv` pipeline shows its source views and ingestion outputs.
+
+## Power BI dashboard
+
+The Power BI report has four pages:
+
+1. **Mandi Market Intelligence** — coverage KPIs, average price by commodity and state, commodity-group share, and price summary.
+2. **Price vs MSP Analysis** — market price compared with MSP, week-on-week trend, price gap, and comparison detail.
+3. **Market Explorer** — commodity, commodity-group and state filters; Top 10 markets; minimum/maximum price comparison; detailed market table.
+4. **Rainfall Monitor** — actual versus normal rainfall, rainfall categories, monthly comparison, state ranking, and state filter.
+
+The separate Power BI project README documents a PBIP project with a TMDL semantic model, PBIR report, five CSV source files, 8 model tables, 46 measures, 4 report pages and 38 visuals. It also documents a MandiPremium V2 theme, SVG page backgrounds, Power Query cleanup and TopN filtering.
+
+## Power BI project files
+
+```text
+MandiRainfallDashboard/
+├── MandiRainfallDashboard.pbip
+├── MandiRainfallDashboard.SemanticModel/
+├── MandiRainfallDashboard.Report/
+├── *.csv
+└── _build/
+    ├── generate_pbip.py
+    ├── validate_pbip.py
+    └── check_m.py
 ```
 
-Validation: every report JSON file passes the official Microsoft PBIR schemas,
-`powerbi-report-author validate` reports 0 errors, and the TMDL model loads in
-Tabular Editor 2.
+The original report uses a `SourceFolder` parameter for its local CSV files. For the Databricks-connected version, the relevant Power Query source steps are changed to use the Databricks SQL Warehouse connector. Keep existing query names, column names, data types, relationships and measures compatible so the report visuals continue to work.
+
+## Technology stack
+
+- Databricks and Unity Catalog
+- Apache Spark / PySpark
+- Python and `pyspark.pipelines`
+- SQL and Databricks SQL Warehouse
+- Power BI Desktop (PBIP, TMDL, PBIR, Power Query)
+- CSV and Parquet
+
+## Important validation notes
+
+- Confirm source table names and schemas in Unity Catalog before rerunning the pipeline.
+- A successful pipeline run should be checked against the event log and Gold-table row counts.
+- Compare Gold-table columns and grain with the existing Power BI queries before replacing CSV sources.
+- Validate all report pages, slicers, DAX measures, relationships and visuals after changing the data source.
+- Dashboard figures are report snapshots and may change after refresh.
+
+## Repository layout
+
+```text
+Agriculture_Intelligence/
+├── transformations/
+│   ├── 01_bronze.py
+│   ├── 02_silver.py
+│   └── 03_gold.py
+├── docs/
+│   └── images/
+│       ├── agriculture-medallion-pipeline.png
+│       └── mandi-csv-ingestion-pipeline.png
+├── MandiRainfallDashboard/
+│   ├── MandiRainfallDashboard.pbip
+│   ├── MandiRainfallDashboard.SemanticModel/
+│   └── MandiRainfallDashboard.Report/
+└── README.md
+```
+
+*The Power BI folder shown above represents the dashboard project. The Databricks transformation files and dashboard project may be maintained in separate repositories or folders.*
