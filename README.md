@@ -3,8 +3,8 @@
 An agricultural data engineering and Power BI project combining Indian mandi market prices with district-level rainfall information. Data is processed in **Databricks using Medallion Architecture** and presented through a four-page Power BI dashboard.
 
 ## Team Member 
-**Bhragender kumar Singh - 2401730131**
-**Aayush Sharma - 2401730128**
+**Bhragender kumar Singh - 2401730131**,
+**Aayush Sharma - 2401730128**,
 **Gaurav Chauhan - 240173146**
 
 ## Project description
