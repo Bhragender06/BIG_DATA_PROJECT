@@ -2,6 +2,13 @@
 
 An agricultural data engineering and Power BI project combining Indian mandi market prices with district-level rainfall information. Data is processed in **Databricks using Medallion Architecture** and presented through a four-page Power BI dashboard.
 
+##Project description
+Agriculture Market Intelligence is an end-to-end data engineering and business intelligence project that brings Indian agricultural market-price information and district-level rainfall observations into one analytical workflow. The project uses Databricks and Apache Spark to ingest source datasets, preserve raw records in the Bronze layer, clean and standardize them in the Silver layer, and publish analytics-ready Gold tables.
+
+The Gold layer provides five reporting datasets: market-and-commodity price summaries, commodity-level comparisons with Minimum Support Price (MSP), latest market prices, district-wise monthly rainfall summaries, and daily rainfall trends. These curated outputs support a four-page Power BI dashboard where users can explore mandi prices by state, district, market and commodity, compare market prices with MSP, and monitor rainfall against normal levels.
+
+The project demonstrates a complete data-to-insight workflow, from source ingestion and transformation to interactive reporting. It supports data exploration and decision-making; it does not prove that rainfall causes commodity-price changes. Any combined price-and-rainfall analysis requires overlapping date ranges and matching geographic identifiers.
+
 ## Project at a glance
 
 - **Market data:** historical mandi prices and recent AGMARKNET records.
