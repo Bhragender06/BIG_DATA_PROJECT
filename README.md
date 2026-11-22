@@ -2,6 +2,11 @@
 
 An agricultural data engineering and Power BI project combining Indian mandi market prices with district-level rainfall information. Data is processed in **Databricks using Medallion Architecture** and presented through a four-page Power BI dashboard.
 
+## Team Member 
+**Bhragender kumar Singh - 2401730131**
+**Aayush Sharma - 2401730128**
+**Gaurav Chauhan - 240173146**
+
 ## Project description
 Agriculture Market Intelligence is an end-to-end data engineering and business intelligence project that brings Indian agricultural market-price information and district-level rainfall observations into one analytical workflow. The project uses Databricks and Apache Spark to ingest source datasets, preserve raw records in the Bronze layer, clean and standardize them in the Silver layer, and publish analytics-ready Gold tables.
 
